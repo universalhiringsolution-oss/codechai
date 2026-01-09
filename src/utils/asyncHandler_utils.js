@@ -1,5 +1,5 @@
-const asyncHandler_utils =(requestHandler) => {
-    (req, res, next) => {
+const asyncHandler =(requestHandler) => {
+   return (req, res, next) => {
         Promise.resolve(requestHandler(req, res, next)).catch((err) => next(err));
 
     }
@@ -8,7 +8,7 @@ const asyncHandler_utils =(requestHandler) => {
 
 
 
-export { asyncHandler_utils }
+export default asyncHandler
 
 
 
