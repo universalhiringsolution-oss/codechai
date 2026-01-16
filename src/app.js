@@ -1,9 +1,11 @@
-// 9 :20 :00
+// 10 :06 :00 Part 1
+// 
 
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import userRouter from './routes/user.routes.js';
+import errorHandler from './middlewares/error.middleware.js';
 
 const app = express()
 
@@ -22,6 +24,9 @@ app.use('/api/v1/users', userRouter);
 
 
 //  http://localhost:8000/api/v1/users/register
+
+// error handler (should be last middleware)
+app.use(errorHandler);
 
 
 export { app }

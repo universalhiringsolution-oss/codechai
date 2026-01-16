@@ -30,10 +30,11 @@ const userSchema = new Schema(
         },
         avatar: {
             type: String, // cloudinary url 
-            required: true,
+            default: "",
         },
         coverImage: {
             type: String, // cloudinary url
+            default: "",
         },
         watchHistory: [
             {
@@ -53,11 +54,10 @@ const userSchema = new Schema(
     }, { timestamps: true }
 )
 
-userSchema.pre('save', async function (next) {
-    if (!this.idModified('password')) return next();
+userSchema.pre('save', async function () {
+    if (!this.isModified('password')) return;
 
     this.password = bcrypt.hashSync(this.password, 10)
-    next()
 });
 
 userSchema.methods.isPasswordCorrect = async function (password) {
@@ -85,7 +85,7 @@ userSchema.methods.generateRefreshToken = function () {
         _id: this._id,
 
     },
-        process.env.ACCESS_TOKEN_SECRET,
+        process.env.REFRESH_TOKEN_SECRET,
         {
             expiresIn: process.env.REFRESH_TOKEN_EXPIRY
         }
