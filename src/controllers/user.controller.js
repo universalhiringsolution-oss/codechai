@@ -3,7 +3,7 @@ import { ApiError } from '../utils/ApiError_utils.js';
 import { User } from '../models/user.model.js';
 import { uploadOnCloudinary } from '../utils/cloudinary_service_utils.js';
 import { ApiResponse } from '../utils/ApiResponse_utils.js';
-import { jwt } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
 
 const generateAccessAndRefreshToken = async (userId) => {
@@ -225,8 +225,9 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             secure: true
         }
 
-        const { accessToken, newrefreshToken } = await generateAccessAndRefreshToken(user.id)
+        const { accessToken, refreshToken: newrefreshToken } = await generateAccessAndRefreshToken(user._id)
 
+        return res
             .status(200)
             .cookie("accessToken", accessToken, options)
             .cookie("refreshToken", newrefreshToken, options)
@@ -269,7 +270,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
     return res
         .status(200)
-        .json(200, req.user, "current user fetched successfully")
+        .json(new ApiResponse(200, req.user, "current user fetched successfully"))
 })
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
@@ -279,7 +280,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'All fields are required')
 
     }
-    User.findByIdAndUpdate(req.User?._id,
+    const user = await User.findByIdAndUpdate(req.user?._id,
         {
             $set: {
                 fullName: fullName,
@@ -291,7 +292,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, User, "Account details updated successfully"))
+        .json(new ApiResponse(200, user, "Account details updated successfully"))
 
 })
 
@@ -318,7 +319,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
             }
         },
-        { $new: true }
+        { new: true }
 
     ).select("-password")
 
@@ -352,7 +353,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
             }
         },
-        { $new: true }
+        { new: true }
 
     ).select("-password")
 
@@ -363,6 +364,81 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
 })
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+
+    const { username } = req.params
+
+    if (!username?.trim()) {
+        throw new ApiError(400, "Username is required")
+    }
+
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase()
+            }
+
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscribers"
+                },
+                channelsSubscribedToCount: {
+                    $size: "$subscribedTo"
+                },
+                isSubscribed: {
+                    $cond: {
+                        if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                fullName: 1,
+                username: 1,
+                subscribersCount: 1,
+                channelsSubscribedToCount: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                email: 1,
+                coverImage: 1,
+                createdAt: 1
+            }
+        }
+    ])
+
+    if (!channel?.length) {
+        throw new ApiError(404, "Channel not found")
+
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, channel[0], "Channel profile fetched successfully"))
+
+})
 
 export {
     registerUser,
@@ -373,7 +449,8 @@ export {
     getCurrentUser,
     updateAccountDetails,
     updateUserAvatar,
-    updateUserCoverImage
+    updateUserCoverImage,
+    getUserChannelProfile
 
 
 }
